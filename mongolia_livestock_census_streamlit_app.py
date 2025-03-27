@@ -20,7 +20,7 @@ data, aimags, soums = load_data()
 # Sidebar interaction
 st.sidebar.header("Livestock Census Filters")
 selected_period = st.sidebar.selectbox("Select Year", sorted(data["Period"].unique(), reverse=True))
-animal_types = ['Total'] + list(data["SCR_ENG1"].unique())
+animal_types = list(data["SCR_ENG1"].unique())
 selected_animal = st.sidebar.selectbox("Select Livestock Type", animal_types)
 level = st.sidebar.radio("Geographic Level", ["Aimags", "Soums"])
 
@@ -79,4 +79,4 @@ folium.GeoJson(
 ).add_to(m)
 
 # Render your map
-folium_static(m, width=1200, height=600)
+folium_static(m, width=900, height=600)
