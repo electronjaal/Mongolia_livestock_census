@@ -18,11 +18,17 @@ def load_data():
 data, aimags, soums = load_data()
 
 # Sidebar interaction
-st.sidebar.header("Animal Count Filters")
+st.sidebar.header("Livestock Census Filters")
 selected_period = st.sidebar.selectbox("Select Year", sorted(data["Period"].unique(), reverse=True))
 animal_types = ['Total'] + list(data["SCR_ENG1"].unique())
-selected_animal = st.sidebar.selectbox("Select Animal", animal_types)
+selected_animal = st.sidebar.selectbox("Select Livestock Type", animal_types)
 level = st.sidebar.radio("Geographic Level", ["Aimags", "Soums"])
+
+# Home screen information
+st.title("Livestock Census of Mongolia")
+filtered_total = data[(data["Period"] == selected_period) & (data["SCR_ENG1"] == selected_animal) & (data['CODE'] != 0)]
+total_count = filtered_total['DTVAL_CO'].sum()
+st.subheader(f"Total {selected_animal} in {selected_period}: {total_count:,.0f}")
 
 # Filter data based on user selection and CODE condition
 filtered_data = data[(data["Period"] == selected_period)]
@@ -44,7 +50,7 @@ else:
     merged = geo_df.merge(filtered_data, left_on='NAME_2', right_on='SCR_ENG', how='left')
 
 # Display interactive map
-st.header(f"Animal Count Heatmap ({selected_animal}, {selected_period}, {level})")
+st.header(f"Livestock Heatmap ({selected_animal}, {selected_period}, {level})")
 m = folium.Map(location=[46.8625, 103.8467], zoom_start=6)
 
 # Generate choropleth heatmap
@@ -56,7 +62,7 @@ folium.Choropleth(
     fill_color="YlOrRd",
     fill_opacity=0.7,
     line_opacity=0.2,
-    legend_name="Animal Count",
+    legend_name="Livestock Count",
     nan_fill_color="white",
 ).add_to(m)
 
@@ -65,7 +71,7 @@ folium.GeoJson(
     merged,
     tooltip=folium.GeoJsonTooltip(
         fields=["Region", "SCR_ENG1", "DTVAL_CO"],
-        aliases=[f"{level}: ", "Animal Type: ", "Animal Count: "],
+        aliases=[f"{level}: ", "Livestock Type: ", "Livestock Count: "],
         localize=True,
         labels=True,
         sticky=True
