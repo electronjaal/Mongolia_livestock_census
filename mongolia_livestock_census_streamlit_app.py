@@ -79,4 +79,4 @@ folium.GeoJson(
 ).add_to(m)
 
 # Render your map
-folium_static(m, width=900, height=600)
+folium_static(m, width=1200, height=600)
