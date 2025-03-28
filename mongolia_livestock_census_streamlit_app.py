@@ -65,7 +65,7 @@ if level == "Aimags":
     geo_df = aimags.copy()
     geo_df['Region'] = geo_df['NAME_1']
     # Aimag have CODE < 1000
-    filtered_data = filtered_data[filtered_data['CODE'] < 1000]
+    filtered_data = filtered_data[(filtered_data['CODE'] => 100) & (filtered_data['CODE'] < 1000)]
     merged = geo_df.merge(
         filtered_data, left_on='NAME_1', right_on='SCR_ENG', how='left'
     )
