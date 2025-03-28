@@ -4,6 +4,15 @@ import geopandas as gpd
 import folium
 from streamlit_folium import folium_static
 
+#############################
+# Page & Layout Configuration
+#############################
+st.set_page_config(
+    page_title="Livestock Census of Mongolia",
+    layout="wide",               # wide layout for improved responsiveness
+    initial_sidebar_state="auto" # or "expanded", "collapsed"
+)
+
 @st.cache_data
 def load_data():
     df = pd.read_csv('mal_toollogo_buh_on.tsv', sep='\t')
@@ -111,4 +120,4 @@ folium.GeoJson(
 ).add_to(m)
 
 # Display map
-folium_static(m, width=1100, height=600)
+folium_static(m, width=None, height=600)
