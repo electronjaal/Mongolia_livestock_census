@@ -27,6 +27,12 @@ selected_period = st.sidebar.selectbox(
     sorted(data["Period"].unique(), reverse=True)
 )
 
+# Continue with the rest of the filters
+animal_types = list(data["SCR_ENG1"].unique())
+selected_animal = st.sidebar.selectbox("Select Livestock Type", animal_types)
+level = st.sidebar.radio("Geographic Level", ["Aimags", "Soums"])
+
+
 # Show national totals in the sidebar
 summary_data = data[
     (data["Period"] == selected_period) 
@@ -44,11 +50,6 @@ for i, row in summary_data.iterrows():
             f"Total {row['SCR_ENG1']}: {row['DTVAL_CO']:,.0f}"
         )
 
-# Continue with the rest of the filters
-animal_types = list(data["SCR_ENG1"].unique())
-selected_animal = st.sidebar.selectbox("Select Livestock Type", animal_types)
-level = st.sidebar.radio("Geographic Level", ["Aimags", "Soums"])
-
 ################################
 # Main screen
 ################################
@@ -65,7 +66,7 @@ if level == "Aimags":
     geo_df = aimags.copy()
     geo_df['Region'] = geo_df['NAME_1']
     # Aimag have CODE < 1000
-    filtered_data = filtered_data[(filtered_data['CODE'] => 100) & (filtered_data['CODE'] < 1000)]
+    filtered_data = filtered_data[(filtered_data['CODE'] >= 100) & (filtered_data['CODE'] < 1000)]
     merged = geo_df.merge(
         filtered_data, left_on='NAME_1', right_on='SCR_ENG', how='left'
     )
