@@ -35,7 +35,7 @@ strings = {
         "national_totals_for": "Тухайн оны нэгдсэн дүн",
         "total_livestock": "Нийт мал",
         "select_livestock_type": "Малын төрөл сонгох",
-        "geographic_level": "Нутаг дэвсгэрийн түвшин",
+        "geographic_level": "Засаг захиргааны нэгж",
         "aimags_label": "Аймаг",
         "soums_label": "Сум",
         "heatmap_header": "Малын тоо газрын зураг дээр",
@@ -59,13 +59,14 @@ st.set_page_config(
 
 ##################################
 # 3) Language Selection in Sidebar
+#    Default language is Mongolian
 ##################################
 lang_choice = st.sidebar.radio(
-    label=strings["en"]["language_selector"] + " / " + strings["mn"]["language_selector"],
-    options=["English", "Монгол"],
-    index=0
+    label=strings["mn"]["language_selector"] + " / " + strings["en"]["language_selector"], 
+    options=["Монгол", "English"],
+    index=0  # <-- This makes Mongolian the default
 )
-lang = "en" if lang_choice == "English" else "mn"
+lang = "mn" if lang_choice == "Монгол" else "en"
 
 ##################################
 # 4) Data Loading
@@ -74,7 +75,6 @@ lang = "en" if lang_choice == "English" else "mn"
 def load_data():
     df = pd.read_csv('mal_toollogo_buh_on.tsv', sep='\t')
     df['DTVAL_CO'] = df['DTVAL_CO'] * 1000
-    
     aimags = gpd.read_file('aimags.json')
     soums = gpd.read_file('soums.json')
     return df, aimags, soums
@@ -85,13 +85,13 @@ data, aimags, soums = load_data()
 # 5) Determine which columns to use for livestock type
 ##################################
 if lang == "mn":
-    livestock_col = "SCR_MN1"     # Mongolian
-    region_aimag_code = "NAME_1"  # unchanged, we still match region by English name
+    livestock_col = "SCR_MN1"    
+    region_aimag_code = "NAME_1"  
     region_soum_code = "NAME_2"
     total_key = strings["mn"]["total_keyword"]  # 'Бүгд'
 else:
-    livestock_col = "SCR_ENG1"    # English
-    region_aimag_code = "NAME_1"  # unchanged, we still match region by English name
+    livestock_col = "SCR_ENG1"   
+    region_aimag_code = "NAME_1"
     region_soum_code = "NAME_2"
     total_key = strings["en"]["total_keyword"]  # 'Total'
 
@@ -105,36 +105,40 @@ selected_period = st.sidebar.selectbox(
     sorted(data["Period"].unique(), reverse=True)
 )
 
-# 6.2) Collect livestock types from appropriate column
+# Gather all possible livestock names from the chosen column
 all_types = list(data[livestock_col].dropna().unique())
-selected_animal = st.sidebar.selectbox(strings[lang]["select_livestock_type"], sorted(all_types))
 
-# 6.3) Geographic level
+# We want the default livestock to be the 'total_key'
+# We'll find that in the list if it exists:
+default_index = 0
+if total_key in all_types:
+    default_index = sorted(all_types).index(total_key)
+
+selected_animal = st.sidebar.selectbox(
+    strings[lang]["select_livestock_type"],
+    sorted(all_types),
+    index=default_index  # This sets "Total" or "Бүгд" as default if present
+)
+
 level_choice = st.sidebar.radio(
     strings[lang]["geographic_level"],
     [strings[lang]["aimags_label"], strings[lang]["soums_label"]]
 )
 
-# 6.1) National totals (CODE=0) for the selected year
+# Display national totals (CODE=0) for the chosen year in the sidebar
 summary_data = data[(data["Period"] == selected_period) & (data["CODE"] == 0)]
 st.sidebar.write(f"**{strings[lang]['national_totals_for']} {selected_period}:**")
-
 for _, row in summary_data.iterrows():
-    # We compare the row's *Mongolian or English column* to the total keyword
-    # But note: row might only have 'SCR_ENG1' or 'SCR_MN1'.
-    # If your data for CODE=0 also has both SCR_ENG1 and SCR_MN1, we can do row[livestock_col].
-    # If not, we might do a separate approach. We'll assume both columns are present.
     row_type_name = row[livestock_col] if pd.notna(row[livestock_col]) else ""
-    
     if row_type_name == total_key:
         st.sidebar.subheader(
             f"{strings[lang]['total_livestock']}: {row['DTVAL_CO']:,.0f}"
         )
     else:
-        # e.g., Horse / Адуу, Cattle / Үхэр, etc.
         st.sidebar.write(
             f"{row_type_name}: {row['DTVAL_CO']:,.0f}"
         )
+
 
 
 ##################################
@@ -156,16 +160,26 @@ filtered_data = data[
 if level_choice == strings[lang]["aimags_label"]:
     geo_df = aimags.copy()
     geo_df['Region'] = geo_df[region_aimag_code]
-    # Aimags: CODE < 1000
-    filtered_data = filtered_data[(filtered_data['CODE'] >= 100) & (filtered_data['CODE'] < 1000)]
-    merged = geo_df.merge(filtered_data, left_on=region_aimag_code, right_on='SCR_ENG', how='left')
+    filtered_data = filtered_data[filtered_data['CODE'] >= 100 & (filtered_data['CODE'] < 1000)]
+    merged = geo_df.merge(
+        filtered_data, 
+        left_on=region_aimag_code, 
+        right_on='SCR_ENG', 
+        how='left'
+    )
     region_alias = strings[lang]["tooltip_aimag"]
 else:
     geo_df = soums.copy()
     geo_df['Region'] = geo_df[region_soum_code]
-    # Soums: 1000 <= CODE < 100000
-    filtered_data = filtered_data[(filtered_data['CODE'] >= 1000) & (filtered_data['CODE'] < 100000)]
-    merged = geo_df.merge(filtered_data, left_on=region_soum_code, right_on='SCR_ENG', how='left')
+    filtered_data = filtered_data[
+        (filtered_data['CODE'] >= 1000) & (filtered_data['CODE'] < 100000)
+    ]
+    merged = geo_df.merge(
+        filtered_data, 
+        left_on=region_soum_code, 
+        right_on='SCR_ENG', 
+        how='left'
+    )
     region_alias = strings[lang]["tooltip_soum"]
 
 ##################################
@@ -187,8 +201,6 @@ folium.Choropleth(
     nan_fill_color="white",
 ).add_to(m)
 
-# In the tooltip, we display the chosen livestock column
-# along with the region and DTVAL_CO
 folium.GeoJson(
     merged,
     tooltip=folium.GeoJsonTooltip(
