@@ -105,6 +105,12 @@ selected_period = st.sidebar.selectbox(
     sorted(data["Period"].unique(), reverse=True)
 )
 
+# 6.3) Geographic level
+level_choice = st.sidebar.radio(
+    strings[lang]["geographic_level"],
+    [strings[lang]["aimags_label"], strings[lang]["soums_label"]]
+)
+
 # 6.1) National totals (CODE=0) for the selected year
 summary_data = data[(data["Period"] == selected_period) & (data["CODE"] == 0)]
 st.sidebar.write(f"**{strings[lang]['national_totals_for']} {selected_period}:**")
@@ -130,11 +136,6 @@ for _, row in summary_data.iterrows():
 all_types = list(data[livestock_col].dropna().unique())
 selected_animal = st.sidebar.selectbox(strings[lang]["select_livestock_type"], sorted(all_types))
 
-# 6.3) Geographic level
-level_choice = st.sidebar.radio(
-    strings[lang]["geographic_level"],
-    [strings[lang]["aimags_label"], strings[lang]["soums_label"]]
-)
 
 ##################################
 # 7) Main Page Title
@@ -156,7 +157,7 @@ if level_choice == strings[lang]["aimags_label"]:
     geo_df = aimags.copy()
     geo_df['Region'] = geo_df[region_aimag_code]
     # Aimags: CODE < 1000
-    filtered_data = filtered_data[filtered_data['CODE'] < 1000]
+    filtered_data = filtered_data[(filtered_data['CODE'] >= 100) & (filtered_data['CODE'] < 1000)]
     merged = geo_df.merge(filtered_data, left_on=region_aimag_code, right_on='SCR_ENG', how='left')
     region_alias = strings[lang]["tooltip_aimag"]
 else:
