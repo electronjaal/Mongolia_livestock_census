@@ -105,6 +105,10 @@ selected_period = st.sidebar.selectbox(
     sorted(data["Period"].unique(), reverse=True)
 )
 
+# 6.2) Collect livestock types from appropriate column
+all_types = list(data[livestock_col].dropna().unique())
+selected_animal = st.sidebar.selectbox(strings[lang]["select_livestock_type"], sorted(all_types))
+
 # 6.3) Geographic level
 level_choice = st.sidebar.radio(
     strings[lang]["geographic_level"],
@@ -131,10 +135,6 @@ for _, row in summary_data.iterrows():
         st.sidebar.write(
             f"{row_type_name}: {row['DTVAL_CO']:,.0f}"
         )
-
-# 6.2) Collect livestock types from appropriate column
-all_types = list(data[livestock_col].dropna().unique())
-selected_animal = st.sidebar.selectbox(strings[lang]["select_livestock_type"], sorted(all_types))
 
 
 ##################################
