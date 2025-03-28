@@ -28,7 +28,7 @@ strings = {
         "total_keyword": "Total"      # matches data in SCR_ENG1
     },
     "mn": {
-        "app_title": "Монголын мал тооллого",
+        "app_title": "Монголын мал тооллогын өгөгдлийн орон зайн дүрслэл",
         "sidebar_header": "Мал тооллогын шүүлтүүр",
         "language_selector": "Хэл",
         "select_year": "Он сонгох",
@@ -64,7 +64,7 @@ st.set_page_config(
 lang_choice = st.sidebar.radio(
     label=strings["mn"]["language_selector"] + " / " + strings["en"]["language_selector"], 
     options=["Монгол", "English"],
-    index=0  # <-- This makes Mongolian the default
+    index=0  # Mongolian as default
 )
 lang = "mn" if lang_choice == "Монгол" else "en"
 
@@ -85,15 +85,14 @@ data, aimags, soums = load_data()
 # 5) Determine which columns to use for livestock type
 ##################################
 if lang == "mn":
-    livestock_col = "SCR_MN1"    
-    region_aimag_code = "NAME_1"  
-    region_soum_code = "NAME_2"
-    total_key = strings["mn"]["total_keyword"]  # 'Бүгд'
+    livestock_col = "SCR_MN1"
+    total_key = strings["mn"]["total_keyword"]   # 'Бүгд'
 else:
-    livestock_col = "SCR_ENG1"   
-    region_aimag_code = "NAME_1"
-    region_soum_code = "NAME_2"
-    total_key = strings["en"]["total_keyword"]  # 'Total'
+    livestock_col = "SCR_ENG1"
+    total_key = strings["en"]["total_keyword"]   # 'Total'
+
+region_aimag_code = "NAME_1"  
+region_soum_code = "NAME_2"
 
 ##################################
 # 6) Sidebar Filters
@@ -105,27 +104,57 @@ selected_period = st.sidebar.selectbox(
     sorted(data["Period"].unique(), reverse=True)
 )
 
-# Gather all possible livestock names from the chosen column
-all_types = list(data[livestock_col].dropna().unique())
+############################
+# Sort Animal Types by CODE1
+############################
+# 1) Subset rows that have CODE1 + the livestock col
+valid_animals = data.dropna(subset=["CODE1", livestock_col]).copy()
 
-# We want the default livestock to be the 'total_key'
-# We'll find that in the list if it exists:
+# 2) Convert CODE1 to integer to handle leading zeros
+def safe_int(x):
+    try:
+        return int(x)
+    except:
+        return 999999  # fallback if parse fails
+
+valid_animals["CODE1_int"] = valid_animals["CODE1"].apply(safe_int)
+
+# 3) Keep only distinct pairs of (CODE1_int, livestock_col)
+valid_animals = valid_animals[["CODE1_int", livestock_col]].drop_duplicates()
+
+# 4) Sort by CODE1_int ascending
+valid_animals.sort_values("CODE1_int", inplace=True)
+
+# 5) Build final list in numeric order, removing duplicates
+final_order = []
+seen = set()
+for _, row in valid_animals.iterrows():
+    t = row[livestock_col]
+    if t not in seen:
+        seen.add(t)
+        final_order.append(t)
+
+# 6) Find index of total_key for default selection
 default_index = 0
-if total_key in all_types:
-    default_index = sorted(all_types).index(total_key)
+if total_key in final_order:
+    default_index = final_order.index(total_key)
 
+# 7) Livestock selectbox
 selected_animal = st.sidebar.selectbox(
     strings[lang]["select_livestock_type"],
-    sorted(all_types),
-    index=default_index  # This sets "Total" or "Бүгд" as default if present
+    final_order,
+    index=default_index
 )
 
+# 8) Geographic level
 level_choice = st.sidebar.radio(
     strings[lang]["geographic_level"],
     [strings[lang]["aimags_label"], strings[lang]["soums_label"]]
 )
 
-# Display national totals (CODE=0) for the chosen year in the sidebar
+##############################
+# Sidebar: national totals
+##############################
 summary_data = data[(data["Period"] == selected_period) & (data["CODE"] == 0)]
 st.sidebar.write(f"**{strings[lang]['national_totals_for']} {selected_period}:**")
 for _, row in summary_data.iterrows():
@@ -138,8 +167,6 @@ for _, row in summary_data.iterrows():
         st.sidebar.write(
             f"{row_type_name}: {row['DTVAL_CO']:,.0f}"
         )
-
-
 
 ##################################
 # 7) Main Page Title
@@ -160,27 +187,25 @@ filtered_data = data[
 if level_choice == strings[lang]["aimags_label"]:
     geo_df = aimags.copy()
     geo_df['Region'] = geo_df[region_aimag_code]
-    filtered_data = filtered_data[filtered_data['CODE'] >= 100 & (filtered_data['CODE'] < 1000)]
+    filtered_data = filtered_data[(filtered_data['CODE'] >= 100) & (filtered_data['CODE'] < 1000)]
+    region_alias = strings[lang]["tooltip_aimag"]
     merged = geo_df.merge(
-        filtered_data, 
-        left_on=region_aimag_code, 
-        right_on='SCR_ENG', 
+        filtered_data,
+        left_on=region_aimag_code,
+        right_on='SCR_ENG',
         how='left'
     )
-    region_alias = strings[lang]["tooltip_aimag"]
 else:
     geo_df = soums.copy()
     geo_df['Region'] = geo_df[region_soum_code]
-    filtered_data = filtered_data[
-        (filtered_data['CODE'] >= 1000) & (filtered_data['CODE'] < 100000)
-    ]
+    filtered_data = filtered_data[(filtered_data['CODE'] >= 1000) & (filtered_data['CODE'] < 100000)]
+    region_alias = strings[lang]["tooltip_soum"]
     merged = geo_df.merge(
-        filtered_data, 
-        left_on=region_soum_code, 
-        right_on='SCR_ENG', 
+        filtered_data,
+        left_on=region_soum_code,
+        right_on='SCR_ENG',
         how='left'
     )
-    region_alias = strings[lang]["tooltip_soum"]
 
 ##################################
 # 10) Display Interactive Map
